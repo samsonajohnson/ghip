@@ -3,20 +3,97 @@ import scipy
 import scipy.misc
 import scipy.integrate
 import ipdb
+import matplotlib.pyplot as plt
 
-def ghfunc(x,par,ipro=None,offset=None,plot_key=None):
+"""
+What do we ultimately want:
+I think we want a function that calculates the first 15 gauss-hermite poly-
+nomials for some range of x values. are x values the pixels? 
+we are given a set of parameters, and the x values. these parameters are used
+to 
 
-    nx = len(x)
+Where are we:
+-i'm getting an output from ghfunc, no idea if right
+-trying to test from idl code, with poor results of matching
 
-    amp = fan([1.,par[1:10],par[15:18]],nx)
+What we have left:
+-need to make sure that all the arrays are oriented correctly, in terms of 
+ transposes, etc. i think this is really where i'm falling short
+"""
+
+
+def ghfunc(x,p,par,oldwidth,herm_arr,pow_arr,zarr,normarr):
+
+    
+    nx = x.shape[0]
+    #S amplitude is a bit strange to me, I'm not sure what it is for.
+    #S I think it is the coeffs for each GH, but that doesn't make sense to me.
+    #S it is an array of shape (15)X(nx) 
+    #S p is the output GH's with out their coeffs in a (121,15) shaped array
+    
+    amp = fan(np.concatenate(([1.],par[1:11],par[15:19])),nx)
     if par[0] != oldwidth:
         width = par[0]
-        p = set_param(x,n,nx,param_set=True)
+        p = set_param(x,herm_arr,pow_arr,zarr,normarr,width=width)
         oldwidth = par[0]
     #S which axis is this summed over? I believe the first due to idl docs on 
     #S 'total'
-    ipro = np.sum(amp*p,axis=0)
-    return ipro/scipy.integrate.simps(ipro, x=x)
+    ipro = np.sum(amp*p,axis=1)
+    return ipro/scipy.integrate.simps(ipro, x=x), oldwidth
+
+#do ghfunc except param, just ignore. make all attributes their own variables
+#
+
+def set_param(x,herm_arr,pow_arr,zarr,normarr,width=25.):
+    #S order of the hermite polynomials
+    n = zarr.shape[1]
+    #S number of oversampled points (not sure what this means)
+    nx = zarr.shape[0] #121
+
+    #S make a fanned array of the the width, which is need later for the 
+    #S multiplying the zarr by?
+    beta = np.zeros(nx, dtype=np.float64) + width
+    betarr = fan(beta, n,transpose=True)**pow_arr
+    #S make a 1d array of a gaussian applied to all the x points, and fan it 
+    #S to be the same shape as zarr
+    gauss = np.exp(-(x * beta)**2/2.)
+    gaussarr = fan(gauss,n,transpose=True)
+    t = np.dot(herm_arr,(zarr * betarr).T).T
+    final_p = normarr * gaussarr * t
+
+    return final_p
+
+def make_arrs(x,n):
+    """
+    Evaluate the FIXED hermite polynomials at each points of the array x. These
+    Values will not change, as the only 'moving parts' are the width of the 
+    gaussian (beta) and the coefficient to that term (C_n):
+    F(x) = SUM_1^15(C_n*exp(-(beta_n*x)**2)H_n(x))
+
+    so here we are only calculating the the hermite coeffs (herm_arr), H_n(x) 
+    and outputting that as an 2D array, and the normalization array.
+    """
+    #S number of x points we have
+    nx = len(x)
+    #S make the array of coeffs for the polynomials
+    herm_arr = make_herm(n-1,transpose=True)
+    #S make an one dimenisional array of the powers for the first fifteen H_n
+    pow = np.arange(n)
+    #S then fan them so it can be applied correctly (15,nx)
+    pow_arr = fan(pow, nx)
+
+    #S a quick interlude to calculate the normalization array
+    norm = 1./np.sqrt(2.**pow * np.sqrt(np.pi) * scipy.misc.factorial(pow))
+    normarr = fan(norm,nx)
+
+    #S make an array of the x values with shape (15,nx)
+    xarr = fan(x,n,transpose=True)
+    #S raise our array to that power, then multiply by the coeffs
+    zarr = xarr**pow_arr
+    #S So now zarr is a (15,nx) shaped array evaluated at the right points
+    return herm_arr, pow_arr, zarr, normarr
+
+
 
 def make_herm(n,transpose=False):
 
@@ -47,8 +124,7 @@ def make_herm(n,transpose=False):
     #S equivalence. this returns correct array up to H_10
     if n > 1:
         for ind in range(2,n+1):
-            h[ind,:] = np.roll(h[ind-1,:],1)*2. -\
-                2.*float(ind-1)*h[ind-2,:]
+            h[ind,:] = np.roll(h[ind-1,:],1)*2.-2.*float(ind-1)*h[ind-2,:]
     #S if we want the transpose
     if transpose:
         return h.T
@@ -56,44 +132,20 @@ def make_herm(n,transpose=False):
     #S otherwise just send out the h array
     else:
         return h
-
-#do ghfunc except param, just ignore. make all attributes their own variables
-#
-
-def set_param(x,n,nx,param_set=True):
-    
-    #S number of terms
-    n = 15
-    #S number of oversampled points
-    nx = len(x) #121
-    herm_arr = make_herm(n-1,transpose=True)
-    if param_set:
-        pow = np.arange(n)
-        pow_arr = fan(pow, nx)
-        xarr = fan(x,n,transpose=True)
-        zarr = xarr**powarr
-        norm = 1./np.sqrt(2.**pow * np.sqrt(np.pi) * scipy.misc.factorial(pow))
-        normarr = fan(norm,nx)
-    beta = np.zeros(nx, dtype=np.float64) + width
-    betarr = fan(beta, n)**powarr
-    gauss = np.exp(-(x * beta)**2/2.)
-    gaussarr = fan(gauss,n,transpose=True)
-    t = np.dot(herm_arr,zarr * betarr)
-    final_p = normarr * gaussarr * t
     
 def fan(array,nfan,transpose=False):
     #S function to emulate fan.pro
-    temp_list = []
-    for i in range(nfan):
-        temp_list.append(array)
-    #S let's return a numpy array for ease
-    fan_array = np.array(temp_list)
+    ones = np.ones(nfan)
+    fan_array = np.outer(ones,array)
     if transpose:
         fan_array = fan_array.T
     return fan_array
     
 if __name__ == '__main__':
     ipdb.set_trace()
-    z = make_herm(5,transpose=True)
-    x = np.arange(121)
-    w = set_param(x,15,len(x))
+    x = np.linspace(-1,1,121,endpoint=False)
+    h,p,z,n=make_arrs(x,15)
+    z = set_param(x,h,p,z,n,width=35.)
+    ghfunc(x,z,np.arange(20),25.,h,p,z,n)
+    
+#def ghfunc(x,p,par,oldwidth,herm_arr,zarr,normarr):
