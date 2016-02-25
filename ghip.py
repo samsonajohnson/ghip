@@ -31,6 +31,7 @@ def ghfunc(x,p,par,oldwidth,herm_arr,pow_arr,zarr,normarr):
     #S it is an array of shape (15)X(nx) 
     #S p is the output GH's with out their coeffs in a (121,15) shaped array
     
+    #S just want parameters, 
     amp = fan(np.concatenate(([1.],par[1:11],par[15:19])),nx)
     if par[0] != oldwidth:
         width = par[0]
@@ -46,19 +47,19 @@ def ghfunc(x,p,par,oldwidth,herm_arr,pow_arr,zarr,normarr):
 
 def set_param(x,herm_arr,pow_arr,zarr,normarr,width=25.):
     #S order of the hermite polynomials
-    n = zarr.shape[1]
+    n = zarr.shape[0]
     #S number of oversampled points (not sure what this means)
-    nx = zarr.shape[0] #121
+    nx = zarr.shape[1]
 
     #S make a fanned array of the the width, which is need later for the 
     #S multiplying the zarr by?
     beta = np.zeros(nx, dtype=np.float64) + width
-    betarr = fan(beta, n,transpose=True)**pow_arr
+    betarr = fan(beta, n)**pow_arr
     #S make a 1d array of a gaussian applied to all the x points, and fan it 
     #S to be the same shape as zarr
     gauss = np.exp(-(x * beta)**2/2.)
-    gaussarr = fan(gauss,n,transpose=True)
-    t = np.dot(herm_arr,(zarr * betarr).T).T
+    gaussarr = fan(gauss,n)
+    t = np.dot(herm_arr,(zarr * betarr))
     final_p = normarr * gaussarr * t
 
     return final_p
@@ -72,26 +73,30 @@ def make_arrs(x,n):
 
     so here we are only calculating the the hermite coeffs (herm_arr), H_n(x) 
     and outputting that as an 2D array, and the normalization array.
+
+
+    def make_arrs(x,n):
+    return herm_arr, pow_arr, zarr, normarr
     """
     #S number of x points we have
     nx = len(x)
     #S make the array of coeffs for the polynomials
-    herm_arr = make_herm(n-1,transpose=True)
+    herm_arr = make_herm(n-1)
     #S make an one dimenisional array of the powers for the first fifteen H_n
     pow = np.arange(n)
     #S then fan them so it can be applied correctly (15,nx)
-    pow_arr = fan(pow, nx)
+    pow_arr = fan(pow, nx,transpose=True)
 
     #S a quick interlude to calculate the normalization array
     norm = 1./np.sqrt(2.**pow * np.sqrt(np.pi) * scipy.misc.factorial(pow))
-    normarr = fan(norm,nx)
+    normarr = fan(norm,nx,transpose=True)
 
     #S make an array of the x values with shape (15,nx)
-    xarr = fan(x,n,transpose=True)
+    xarr = fan(x,n)#,transpose=True)
     #S raise our array to that power, then multiply by the coeffs
     zarr = xarr**pow_arr
     #S So now zarr is a (15,nx) shaped array evaluated at the right points
-    return herm_arr, pow_arr, zarr, normarr
+    return herm_arr, pow_arr, zarr, normarr, xarr
 
 
 
@@ -108,6 +113,9 @@ def make_herm(n,transpose=False):
     H_2 = 4x**2 -2
     H_3 = 8x**3 -12x
     H_4 = 16x**4 - 48x**2 + 12
+
+    def make_herm(n,transpose=False):
+    return h
     """
     #S we need special cases to handle the coefficients less than two, as the
     #S recursion formula works only for n>2. These cases aren't hard though!
@@ -143,9 +151,9 @@ def fan(array,nfan,transpose=False):
     
 if __name__ == '__main__':
     ipdb.set_trace()
-    x = np.linspace(-1,1,121,endpoint=False)
-    h,p,z,n=make_arrs(x,15)
-    z = set_param(x,h,p,z,n,width=35.)
+    x1 = np.arange(-5,5.25,.25)
+    h,p,z,n,x=make_arrs(x1,5)
+    z = set_param(x1,h,p,z,n,width=1.)
     ghfunc(x,z,np.arange(20),25.,h,p,z,n)
     
 #def ghfunc(x,p,par,oldwidth,herm_arr,zarr,normarr):
