@@ -48,6 +48,7 @@ def ghfunc(x,p,par,oldwidth,herm_arr,pow_arr,zarr,normarr):
 def newghfunc(par):
     pass
 
+
 def set_param(x,herm_arr,pow_arr,zarr,normarr,width=25.):
     #S order of the hermite polynomials
     n = zarr.shape[0]
@@ -162,6 +163,14 @@ if __name__ == '__main__':
 #    p1000 = fan(np.arange(7),1000,transpose=True)
 #    hp1000 = np.dot(h,x1000**p1000)
     hp = np.dot(h,x1**p)
+    c = np.array([1.,.27,.2,.2,.05])
+    plt.plot(x1,c[0]*z[0,:]+c[1]*z[1,:]+c[2]*z[2,:]+c[3]*z[3,:])
+    for i in np.arange(4):
+        plt.plot(x1,c[i]*z[i,:],'--', label=r'n=%i,$C_{%i}$=%0.1f'%(i,i,c[i]))
+    plt.title('fourth order series')
+    plt.legend()
+    plt.show()
+    ipdb.set_trace()
     for i in range(5): plt.plot(x1,hp[i,:],label=r'$n=$'+str(i))
     plt.legend()
     plt.title(r'$H_n(x)$')
