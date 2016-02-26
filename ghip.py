@@ -45,6 +45,9 @@ def ghfunc(x,p,par,oldwidth,herm_arr,pow_arr,zarr,normarr):
 #do ghfunc except param, just ignore. make all attributes their own variables
 #
 
+def newghfunc(par):
+    pass
+
 def set_param(x,herm_arr,pow_arr,zarr,normarr,width=25.):
     #S order of the hermite polynomials
     n = zarr.shape[0]
@@ -151,9 +154,35 @@ def fan(array,nfan,transpose=False):
     
 if __name__ == '__main__':
     ipdb.set_trace()
-    x1 = np.arange(-5,5.25,.25)
-    h,p,z,n,x=make_arrs(x1,5)
+    x1 = np.arange(-5,5.25,.25/2.)
+    h,p,z,n,x=make_arrs(x1,7)
     z = set_param(x1,h,p,z,n,width=1.)
+    
+#    x1000 = fan(np.linspace(-5,5,1000),7)
+#    p1000 = fan(np.arange(7),1000,transpose=True)
+#    hp1000 = np.dot(h,x1000**p1000)
+    hp = np.dot(h,x1**p)
+    for i in range(5): plt.plot(x1,hp[i,:],label=r'$n=$'+str(i))
+    plt.legend()
+    plt.title(r'$H_n(x)$')
+    plt.axis([-3,3,-25,25])
+    plt.show()
+    ipdb.set_trace()
+    for i in range(5): plt.plot(x1,z[i,:],label=r'$n=$'+str(i))
+    plt.title(r'$e^{-(\beta x)^2/2}$$H_n(\beta x)$')
+    plt.legend()
+    plt.axis([-5,5,-1,1])
+    plt.show()
+    ipdb.set_trace()
+    plt.plot(x1,z[0,:],'--',label=r'$C_0=1,C_1=0,C_2=0$')
+    plt.plot(x1,z[0,:]+.2*z[1,:],'--',label=r'$C_0=1,C_1=0.2,C_2=0$')
+    plt.plot(x1,z[0,:]-.2*z[1,:],label=r'$C_0=1,C_1=-0.2,C_2=0$')
+    plt.plot(x1,z[0,:]+.2*z[1,:]+.2*z[2,:],label=r'$C_0=1,C_1=0.2,C_2=0.2$')
+    plt.title(r'IP($x$) = $\sum C_ne^{-(\beta x)^2/2}$'\
+                  +r'$H_n(\beta x)$')
+    plt.legend()
+    plt.show()
+    ipdb.set_trace()
     ghfunc(x,z,np.arange(20),25.,h,p,z,n)
     
 #def ghfunc(x,p,par,oldwidth,herm_arr,zarr,normarr):
